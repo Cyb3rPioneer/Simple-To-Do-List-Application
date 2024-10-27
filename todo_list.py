@@ -1,3 +1,5 @@
+import tkinter as tk
+from tkinter import messagebox
 import datetime
 import json
 
@@ -5,111 +7,91 @@ import json
 task_list = []
 
 # Görevleri eklemek için fonksiyon
-def add_task(task, due_date, category, priority):
+def add_task():
+    task = entry_task.get()
+    due_date = entry_date.get()
+    category = entry_category.get()
+    priority = entry_priority.get()
     task_list.append({'task': task, 'due_date': due_date, 'category': category, 'priority': priority, 'completed': False, 'completion_date': None})
-    print(f"Task added: {task} - Due: {due_date} - Category: {category} - Priority: {priority}")
-
-# Görevleri görüntülemek için fonksiyon
-def show_tasks():
-    print("Task List:")
-    for i, task_info in enumerate(task_list, 1):
-        status = "Completed" if task_info['completed'] else "Incomplete"
-        completion_date = task_info['completion_date'] if task_info['completion_date'] else "N/A"
-        print(f"{i}. {task_info['task']} - Due: {task_info['due_date']} - Category: {task_info['category']} - Priority: {task_info['priority']} - Status: {status} - Completion Date: {completion_date}")
+    listbox_tasks.insert(tk.END, f"{task} - {due_date} - {category} - {priority}")
+    entry_task.delete(0, tk.END)
+    entry_date.delete(0, tk.END)
+    entry_category.delete(0, tk.END)
+    entry_priority.delete(0, tk.END)
 
 # Görevleri silmek için fonksiyon
-def delete_task(index):
+def delete_task():
     try:
-        deleted_task = task_list.pop(index - 1)
-        print(f"Task deleted: {deleted_task['task']}")
+        selected_task_index = listbox_tasks.curselection()[0]
+        listbox_tasks.delete(selected_task_index)
+        del task_list[selected_task_index]
     except IndexError:
-        print("Invalid task number.")
+        messagebox.showwarning("Warning", "No task selected")
 
 # Görevleri tamamlamak için fonksiyon
-def complete_task(index):
+def complete_task():
     try:
-        task_list[index - 1]['completed'] = True
-        task_list[index - 1]['completion_date'] = datetime.date.today().strftime("%Y-%m-%d")
-        print(f"Task completed: {task_list[index - 1]['task']}")
+        selected_task_index = listbox_tasks.curselection()[0]
+        task_list[selected_task_index]['completed'] = True
+        task_list[selected_task_index]['completion_date'] = datetime.date.today().strftime("%Y-%m-%d")
+        listbox_tasks.delete(selected_task_index)
+        listbox_tasks.insert(selected_task_index, f"{task_list[selected_task_index]['task']} - {task_list[selected_task_index]['due_date']} - {task_list[selected_task_index]['category']} - {task_list[selected_task_index]['priority']} - Completed")
     except IndexError:
-        print("Invalid task number.")
-
-# Görevleri düzenlemek için fonksiyon
-def edit_task(index, new_task, new_due_date):
-    try:
-        task_list[index - 1]['task'] = new_task
-        task_list[index - 1]['due_date'] = new_due_date
-        print(f"Task updated: {new_task} - Due: {new_due_date}")
-    except IndexError:
-        print("Invalid task number.")
-
-# Tamamlanmış görevleri temizlemek için fonksiyon
-def clear_completed_tasks():
-    global task_list
-    task_list = [task for task in task_list if not task['completed']]
-    print("Completed tasks cleared.")
+        messagebox.showwarning("Warning", "No task selected")
 
 # Görevleri dosyaya kaydetmek için fonksiyon
-def save_tasks(filename):
-    with open(filename, 'w') as file:
+def save_tasks():
+    with open('tasks.json', 'w') as file:
         json.dump(task_list, file)
-    print("Tasks saved.")
+    messagebox.showinfo("Info", "Tasks saved")
 
 # Dosyadan görevleri yüklemek için fonksiyon
-def load_tasks(filename):
+def load_tasks():
     global task_list
     try:
-        with open(filename, 'r') as file:
+        with open('tasks.json', 'r') as file:
             task_list = json.load(file)
-        print("Tasks loaded.")
+        listbox_tasks.delete(0, tk.END)
+        for task in task_list:
+            listbox_tasks.insert(tk.END, f"{task['task']} - {task['due_date']} - {task['category']} - {task['priority']}")
+        messagebox.showinfo("Info", "Tasks loaded")
     except FileNotFoundError:
-        print("No saved tasks found.")
+        messagebox.showwarning("Warning", "No saved tasks found")
 
-# Kullanıcıdan giriş almak için basit bir menü
-while True:
-    print("\n1. Add Task")
-    print("2. Show Tasks")
-    print("3. Delete Task")
-    print("4. Complete Task")
-    print("5. Edit Task")
-    print("6. Clear Completed Tasks")
-    print("7. Save Tasks")
-    print("8. Load Tasks")
-    print("9. Exit")
-    choice = input("Make a choice: ")
+# GUI Uygulaması
+root = tk.Tk()
+root.title("To-Do List Application")
 
-    if choice == "1":
-        new_task = input("New task: ")
-        due_date = input("Due date (YYYY-MM-DD): ")
-        category = input("Category: ")
-        priority = input("Priority (High/Medium/Low): ")
-        add_task(new_task, due_date, category, priority)
-    elif choice == "2":
-        show_tasks()
-    elif choice == "3":
-        show_tasks()
-        task_to_delete = int(input("Task number to delete: "))
-        delete_task(task_to_delete)
-    elif choice == "4":
-        show_tasks()
-        task_to_complete = int(input("Task number to complete: "))
-        complete_task(task_to_complete)
-    elif choice == "5":
-        show_tasks()
-        task_to_edit = int(input("Task number to edit: "))
-        new_task = input("New task description: ")
-        new_due_date = input("New due date (YYYY-MM-DD): ")
-        edit_task(task_to_edit, new_task, new_due_date)
-    elif choice == "6":
-        clear_completed_tasks()
-    elif choice == "7":
-        filename = input("Enter filename to save tasks: ")
-        save_tasks(filename)
-    elif choice == "8":
-        filename = input("Enter filename to load tasks: ")
-        load_tasks(filename)
-    elif choice == "9":
-        print("Exiting...")
-        break
-    else:
-        print("Invalid choice.")
+frame_tasks = tk.Frame(root)
+frame_tasks.pack()
+
+listbox_tasks = tk.Listbox(frame_tasks, height=10, width=70)
+listbox_tasks.pack(side=tk.LEFT)
+
+scrollbar_tasks = tk.Scrollbar(frame_tasks)
+scrollbar_tasks.pack(side=tk.RIGHT, fill=tk.Y)
+
+listbox_tasks.config(yscrollcommand=scrollbar_tasks.set)
+scrollbar_tasks.config(command=listbox_tasks.yview)
+
+entry_task = tk.Entry(root, width=70)
+entry_task.pack()
+entry_date = tk.Entry(root, width=70)
+entry_date.pack()
+entry_category = tk.Entry(root, width=70)
+entry_category.pack()
+entry_priority = tk.Entry(root, width=70)
+entry_priority.pack()
+
+button_add_task = tk.Button(root, text="Add Task", width=68, command=add_task)
+button_add_task.pack()
+button_delete_task = tk.Button(root, text="Delete Task", width=68, command=delete_task)
+button_delete_task.pack()
+button_complete_task = tk.Button(root, text="Complete Task", width=68, command=complete_task)
+button_complete_task.pack()
+button_save_tasks = tk.Button(root, text="Save Tasks", width=68, command=save_tasks)
+button_save_tasks.pack()
+button_load_tasks = tk.Button(root, text="Load Tasks", width=68, command=load_tasks)
+button_load_tasks.pack()
+
+root.mainloop()
