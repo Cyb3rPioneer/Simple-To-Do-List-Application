@@ -1,97 +1,128 @@
 import tkinter as tk
-from tkinter import messagebox
-import datetime
-import json
+from tkinter import messagebox, filedialog
+from datetime import datetime
+import csv
 
-# Görev listesini tutmak için boş bir liste oluştur
-task_list = []
+# Main window
+root = tk.Tk()
+root.title("Enhanced To-Do List Application")
+root.geometry("600x500")
+root.config(bg="#f2f2f2")
 
-# Görevleri eklemek için fonksiyon
+# Task list
+tasks = []
+
+# Update task list function
+def update_task_list():
+    listbox_tasks.delete(0, tk.END)
+    for task in tasks:
+        display_text = f"{task['name']} - {task['status']} - {task['priority']} - {task['date']}"
+        listbox_tasks.insert(tk.END, display_text)
+        if task['status'] == "Completed":
+            listbox_tasks.itemconfig(listbox_tasks.size() - 1, {'bg': 'lightgreen'})
+        else:
+            listbox_tasks.itemconfig(listbox_tasks.size() - 1, {'bg': 'lightcoral'})
+
+# Add task function
 def add_task():
-    task = entry_task.get()
-    due_date = entry_date.get()
-    category = entry_category.get()
-    priority = entry_priority.get()
-    task_list.append({'task': task, 'due_date': due_date, 'category': category, 'priority': priority, 'completed': False, 'completion_date': None})
-    listbox_tasks.insert(tk.END, f"{task} - {due_date} - {category} - {priority}")
-    entry_task.delete(0, tk.END)
-    entry_date.delete(0, tk.END)
-    entry_category.delete(0, tk.END)
-    entry_priority.delete(0, tk.END)
+    task_name = entry_task.get()
+    priority = priority_var.get()
+    if task_name and priority:
+        tasks.append({"name": task_name, "status": "Not Completed", "priority": priority, "date": datetime.now().strftime("%Y-%m-%d")})
+        update_task_list()
+        entry_task.delete(0, tk.END)
+    else:
+        messagebox.showwarning("Warning", "Task name and priority cannot be empty.")
 
-# Görevleri silmek için fonksiyon
+# Edit task function
+def edit_task():
+    try:
+        task_index = listbox_tasks.curselection()[0]
+        new_name = entry_task.get()
+        tasks[task_index]["name"] = new_name
+        update_task_list()
+    except IndexError:
+        messagebox.showwarning("Warning", "Please select a task to edit.")
+
+# Delete task function
 def delete_task():
     try:
-        selected_task_index = listbox_tasks.curselection()[0]
-        listbox_tasks.delete(selected_task_index)
-        del task_list[selected_task_index]
+        task_index = listbox_tasks.curselection()[0]
+        tasks.pop(task_index)
+        update_task_list()
     except IndexError:
-        messagebox.showwarning("Warning", "No task selected")
+        messagebox.showwarning("Warning", "Please select a task to delete.")
 
-# Görevleri tamamlamak için fonksiyon
-def complete_task():
+# Mark task as completed function
+def mark_completed():
     try:
-        selected_task_index = listbox_tasks.curselection()[0]
-        task_list[selected_task_index]['completed'] = True
-        task_list[selected_task_index]['completion_date'] = datetime.date.today().strftime("%Y-%m-%d")
-        listbox_tasks.delete(selected_task_index)
-        listbox_tasks.insert(selected_task_index, f"{task_list[selected_task_index]['task']} - {task_list[selected_task_index]['due_date']} - {task_list[selected_task_index]['category']} - {task_list[selected_task_index]['priority']} - Completed")
+        task_index = listbox_tasks.curselection()[0]
+        tasks[task_index]["status"] = "Completed"
+        update_task_list()
     except IndexError:
-        messagebox.showwarning("Warning", "No task selected")
+        messagebox.showwarning("Warning", "Please select a task to mark as completed.")
 
-# Görevleri dosyaya kaydetmek için fonksiyon
+# Save tasks to CSV
 def save_tasks():
-    with open('tasks.json', 'w') as file:
-        json.dump(task_list, file)
-    messagebox.showinfo("Info", "Tasks saved")
+    with open("tasks.csv", "w", newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Name", "Status", "Priority", "Date"])
+        for task in tasks:
+            writer.writerow([task['name'], task['status'], task['priority'], task['date']])
+    messagebox.showinfo("Info", "Tasks have been saved.")
 
-# Dosyadan görevleri yüklemek için fonksiyon
+# Load tasks from CSV
 def load_tasks():
-    global task_list
     try:
-        with open('tasks.json', 'r') as file:
-            task_list = json.load(file)
-        listbox_tasks.delete(0, tk.END)
-        for task in task_list:
-            listbox_tasks.insert(tk.END, f"{task['task']} - {task['due_date']} - {task['category']} - {task['priority']}")
-        messagebox.showinfo("Info", "Tasks loaded")
+        with open("tasks.csv", "r") as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                tasks.append({"name": row["Name"], "status": row["Status"], "priority": row["Priority"], "date": row["Date"]})
+        update_task_list()
+        messagebox.showinfo("Info", "Tasks have been loaded.")
     except FileNotFoundError:
-        messagebox.showwarning("Warning", "No saved tasks found")
+        messagebox.showwarning("Warning", "Task file not found.")
 
-# GUI Uygulaması
-root = tk.Tk()
-root.title("To-Do List Application")
+# Calculate completion percentage
+def completion_percentage():
+    completed_tasks = sum(1 for task in tasks if task['status'] == "Completed")
+    percentage = (completed_tasks / len(tasks)) * 100 if tasks else 0
+    messagebox.showinfo("Completion Percentage", f"Tasks are {percentage:.2f}% completed.")
 
-frame_tasks = tk.Frame(root)
-frame_tasks.pack()
+# GUI elements
+label_task = tk.Label(root, text="Task:", bg="#f2f2f2")
+label_task.pack()
 
-listbox_tasks = tk.Listbox(frame_tasks, height=10, width=70)
-listbox_tasks.pack(side=tk.LEFT)
-
-scrollbar_tasks = tk.Scrollbar(frame_tasks)
-scrollbar_tasks.pack(side=tk.RIGHT, fill=tk.Y)
-
-listbox_tasks.config(yscrollcommand=scrollbar_tasks.set)
-scrollbar_tasks.config(command=listbox_tasks.yview)
-
-entry_task = tk.Entry(root, width=70)
+entry_task = tk.Entry(root, width=30)
 entry_task.pack()
-entry_date = tk.Entry(root, width=70)
-entry_date.pack()
-entry_category = tk.Entry(root, width=70)
-entry_category.pack()
-entry_priority = tk.Entry(root, width=70)
-entry_priority.pack()
 
-button_add_task = tk.Button(root, text="Add Task", width=68, command=add_task)
+priority_var = tk.StringVar(value="Normal")
+priority_menu = tk.OptionMenu(root, priority_var, "Low", "Normal", "High")
+priority_menu.pack()
+
+button_add_task = tk.Button(root, text="Add Task", command=add_task)
 button_add_task.pack()
-button_delete_task = tk.Button(root, text="Delete Task", width=68, command=delete_task)
+
+button_edit_task = tk.Button(root, text="Edit Task", command=edit_task)
+button_edit_task.pack()
+
+button_delete_task = tk.Button(root, text="Delete Task", command=delete_task)
 button_delete_task.pack()
-button_complete_task = tk.Button(root, text="Complete Task", width=68, command=complete_task)
-button_complete_task.pack()
-button_save_tasks = tk.Button(root, text="Save Tasks", width=68, command=save_tasks)
+
+button_mark_completed = tk.Button(root, text="Mark as Completed", command=mark_completed)
+button_mark_completed.pack()
+
+button_save_tasks = tk.Button(root, text="Save Tasks", command=save_tasks)
 button_save_tasks.pack()
-button_load_tasks = tk.Button(root, text="Load Tasks", width=68, command=load_tasks)
+
+button_load_tasks = tk.Button(root, text="Load Tasks", command=load_tasks)
 button_load_tasks.pack()
 
+button_completion_percentage = tk.Button(root, text="Completion Percentage", command=completion_percentage)
+button_completion_percentage.pack()
+
+listbox_tasks = tk.Listbox(root, width=70, height=15)
+listbox_tasks.pack(pady=10)
+
+# Run the application
 root.mainloop()
